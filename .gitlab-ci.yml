@@ -41,12 +41,14 @@ stages:
 # Set MLFLOW_TRACKING_URI in GitLab CI/CD variables to log runs + registry to a shared MLflow server.
 sensitive_data_mlops:
   stage: ml
+  timeout: 45m
   before_script:
     - apt-get update -qq && apt-get install -qq -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
     - python -m venv .venv
     - .venv/bin/pip install -U pip -q
     - .venv/bin/pip install -r requirements.txt -q
   script:
+    - export PATH="$CI_PROJECT_DIR/.venv/bin:$PATH"
     - export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-file://$CI_PROJECT_DIR/mlruns}"
     - .venv/bin/python pipelines/run_pipeline.py --full-demo
   artifacts:

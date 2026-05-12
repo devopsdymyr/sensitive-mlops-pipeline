@@ -1,5 +1,6 @@
-# Mirror of .github/workflows/ml-demo.yml — keep in sync for documentation / copy-paste.
-# Canonical workflow lives under .github/workflows/ (requires PAT with `workflow` scope to push changes).
+# Enterprise-friendly CI: manual run → full DVC pipeline + sample predict + artifacts.
+# Run: Actions → "ML demo pipeline" → Run workflow.
+# Requires token with repo + workflow scopes to update this file.
 
 name: ML demo pipeline
 

@@ -1,8 +1,17 @@
-# Sensitive data risk MLOps (DPDP-style demo) — use case, how it works, and tests
+# Sensitive data risk — MLOps pipeline (demo)
 
-**Diagrams:** [PNG](docs/mlproject_pipeline_overview.png) · [Mermaid source](docs/pipeline_overview.mmd) · **Plain text:** [README.txt](README.txt) · **Push to GitHub:** [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md)
+![End-to-end pipeline: data → DVC → features (Feast) → train (MLflow) → predict & API](docs/mlproject_pipeline_overview.png)
 
-This repo is a **minimal MLOps demo**: synthetic sensitive-looking text → **regex features** (`src/pii_detector.py`) → **Feast** offline store → **scikit-learn `LogisticRegression`** (risk **LOW / MEDIUM / HIGH**) → **MLflow** registry alias **`champion`** → batch **`predict.py`** and **FastAPI** (`src/serve.py`). Demo only — not legal compliance software.
+**How this pipeline works (four steps):**
+
+1. **Generate & version** — Synthetic `raw_text` and labels are written to CSV; **DVC** (`dvc.yaml`) chains **`generate_data` → `featurize` → `train`** so outputs stay reproducible.  
+2. **Feature store** — **`pii_detector.py`** turns text into numeric PII-style signals; **Feast** applies definitions and writes **`sensitive_features.parquet`** for training.  
+3. **Train & register** — **`LogisticRegression`** learns **LOW / MEDIUM / HIGH** risk from those features; **MLflow** logs the run and registers **`SensitiveDataRiskClassifier`** with alias **`champion`**.  
+4. **Consume** — **`predict.py`** scores CSV rows; **FastAPI** (`serve.py`) exposes **`/v1/score`**, **`/v1/analyze`**, and health/metrics — the same **`pipelines/run_pipeline.py --full-demo`** entrypoint runs in **GitHub Actions** (manual) and **GitLab CI** for enterprise builds.
+
+**Links:** [Plain-text README](README.txt) · [Mermaid source](docs/pipeline_overview.mmd) · [Push to GitHub](docs/GITHUB_SETUP.md)
+
+This repository is a **demo** (not certified compliance software).
 
 ### Fully automatic demo (one command)
 
@@ -22,7 +31,7 @@ If the environment already exists, you only need:
 .venv/bin/python pipelines/run_pipeline.py --full-demo
 ```
 
-That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI** uses the same **`--full-demo`** flag (see **`.gitlab-ci.yml`**). **GitHub Actions:** workflow definition is kept as **`docs/github_actions_ml_demo.yml`** (copy to **`.github/workflows/ml-demo.yml`** when your PAT includes the **`workflow`** scope — see **`docs/GITHUB_SETUP.md`**).
+That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI:** **`.gitlab-ci.yml`** runs **`pipelines/run_pipeline.py --full-demo`** on push/MR (45m timeout, **`PATH`** includes **`.venv/bin`** for **DVC**). **GitHub Actions:** **`.github/workflows/ml-demo.yml`** — **Actions → “ML demo pipeline” → Run workflow** (45m timeout, **`ubuntu-22.04`**, least-privilege **`permissions`**).
 
 ---
 
@@ -51,7 +60,7 @@ Nothing in this repo **automatically** retrains on a timer or on API traffic by 
 | **You (local / VM)** | Run **`.venv/bin/python pipelines/run_pipeline.py`**. If **`.dvc/`** exists, that script runs **`dvc repro`**, which reads **`dvc.yaml`** / **`dvc.lock`** and executes stages whose inputs or dependencies changed (`generate_data` → `featurize` → `train`). If **`.dvc/`** is missing, the script runs the same three steps as plain **`python`** calls in order (no DVC cache). |
 | **You (DVC only)** | Run **`.venv/bin/dvc repro`** yourself — same effect as above when DVC is initialized. |
 | **GitLab CI** | On a **Git push / merge request / manual pipeline** (per your GitLab project rules), the job in **`.gitlab-ci.yml`** (`sensitive_data_mlops`) creates a venv, installs deps, then runs **`pipelines/run_pipeline.py --full-demo`** (pipeline + **`predictions.csv`**). Set **`MLFLOW_TRACKING_URI`** in CI variables if you want runs on a shared MLflow server. |
-| **GitHub Actions** | Workflow YAML is **`docs/github_actions_ml_demo.yml`** (not under **`.github/workflows/`** so HTTPS pushes work without OAuth **`workflow`** scope). Copy it to **`.github/workflows/ml-demo.yml`** when you want Actions; then use a PAT with **`repo` + `workflow`** to push, or add the file in the GitHub UI. |
+| **GitHub Actions** | **`.github/workflows/ml-demo.yml`** — manual **Actions → “ML demo pipeline” → Run workflow** (`ubuntu-22.04`, 45m job timeout, `permissions: contents: read`). |
 | **One-shot script** | **`bash scripts/run_full_demo.sh`** or **`make demo`** — bootstraps venv + DVC (if needed) + pipeline + predict. |
 
 **Not a training trigger:** calling **FastAPI** (`/v1/score`, `/v1/analyze`) only **loads** the already-trained model and scores text — it does **not** start `train.py` or `dvc repro`.
@@ -66,7 +75,7 @@ You **do not** need both **GitHub** and **GitLab**. Pick **one** place to host t
 
 | If you use… | What runs in CI | What you do |
 |-------------|-----------------|--------------|
-| **GitHub** | **docs/github_actions_ml_demo.yml** — copy to **`.github/workflows/ml-demo.yml`** when you want Actions. | Create empty repo → **`git remote`** → **`git push`** (default branch without **`.github/workflows/`** avoids OAuth **`workflow`** scope errors). See **`docs/GITHUB_SETUP.md`**. |
+| **GitHub** | **`.github/workflows/ml-demo.yml`** + mirror **`docs/github_actions_ml_demo.yml`**. | Create repo → **`git push`**. Pushing workflow updates needs a credential with **`workflow`** scope (e.g. **`gh auth login`** with a classic PAT). See **`docs/GITHUB_SETUP.md`**. |
 | **GitLab** | **`.gitlab-ci.yml`** — job **`sensitive_data_mlops`** on **push / merge request** (depends on your project’s CI rules) | Create a new GitLab project → add **`origin`** → **`git push`**. Optional: **Settings → CI/CD → Variables** — set **`MLFLOW_TRACKING_URI`** to a shared MLflow server (otherwise CI uses `file://…/mlruns` in the job workspace). |
 
 **Pushing an existing clone (first time)**
@@ -83,12 +92,19 @@ git push -u origin main
 
 **Removing the CI you do not use (optional, for clarity)**  
 - GitHub-only: delete **`.gitlab-ci.yml`**.  
-- GitLab-only: delete **`docs/github_actions_ml_demo.yml`** and any **`.github/`** folder if present.
+- GitLab-only: delete **`.github/workflows/`** and **`docs/github_actions_ml_demo.yml`** if you want zero GitHub Actions files.
 
 **Other tools (optional, not required for the demo)**  
 - **MLflow tracking server**: set **`MLFLOW_TRACKING_URI`** in CI or your shell so runs and registry are shared (not only `./mlruns` on disk).  
 - **DVC remote** (S3, GCS, etc.): for versioning large **`data/`** outside Git; add **`dvc remote add`** and **`dvc push`** per [DVC remotes](https://dvc.org/doc/command-reference/remote).  
 - **Docker / Kubernetes**: wrap the same commands (`pipelines/run_pipeline.py`, `uvicorn`) in images — not defined in this minimal repo.
+
+---
+
+## Enterprise CI notes
+
+- **GitHub Actions** (`.github/workflows/ml-demo.yml`): **`ubuntu-22.04`**, **45-minute** job timeout, **`permissions: contents: read`**, **`pip`** cache keyed on **`requirements.txt`**, **`PYTHONUNBUFFERED`**, and strict **`bash -euxo pipefail`** on install. Set a repository **secret** **`MLFLOW_TRACKING_URI`** if MLflow runs on a shared server. For **self-hosted runners**, replace **`runs-on: ubuntu-22.04`** with your runner label(s).
+- **GitLab CI** (`.gitlab-ci.yml`): **45-minute** job timeout; **`PATH`** prepends **`.venv/bin`** so **`dvc init`** works after **`pip install`**. Configure **`MLFLOW_TRACKING_URI`** under **Settings → CI/CD → Variables** for enterprise tracking.
 
 ---
 

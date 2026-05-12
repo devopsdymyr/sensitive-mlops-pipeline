@@ -2,9 +2,9 @@
   SENSITIVE DATA CLASSIFICATION & RISK SCORING — README.txt
 ================================================================================
 
-Architecture diagram (PNG, matches this use case):
+Architecture diagram (PNG — also embedded at top of README.md):
     docs/mlproject_pipeline_overview.png
-  Editable Mermaid source (same flow, model.pkl inside MLflow bundle):
+  Editable Mermaid source:
     docs/pipeline_overview.mmd
 
 
