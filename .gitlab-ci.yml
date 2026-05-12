@@ -1,0 +1,77 @@
+# -----------------------------------------------------------------------------
+# What lives in GitLab vs elsewhere (mental map)
+# -----------------------------------------------------------------------------
+#
+# IN GITLAB (this repo + CI/CD)
+#   • Source: src/, feature_repo/, dvc.yaml, params.yaml, pipelines/
+#   • Pipeline UI: CI/CD → Pipelines → job logs, artifacts (e.g. metrics JSON)
+#   • Secrets: Settings → CI/CD → Variables (AWS keys, MLFLOW_TRACKING_URI, etc.)
+#
+# DVC
+#   • Git tracks: dvc.yaml, dvc.lock, *.dvc pointer files (when you `dvc add` data)
+#   • Large data/cache: NOT in Git — use a DVC remote (S3, GCS, Azure, SSH, WebHDFS…)
+#   • In CI: install DVC, `dvc remote default`, credentials from GitLab variables, then `dvc repro`
+#
+# MLflow (Tracking + Model Registry)
+#   • Local dev: ./mlruns on disk (not visible in GitLab except if you upload artifacts)
+#   • Team setup: run an MLflow Tracking Server (VM/K8s/docker); set MLFLOW_TRACKING_URI in CI
+#   • "Registry" in MLflow = server-side model names/versions (IrisClassifier, etc.) — view in MLflow UI
+#   • GitLab's own "Model registry" (if your tier has it) is separate from MLflow unless you integrate explicitly
+#
+# Feast
+#   • Definitions: feature_repo/ in Git
+#   • Registry DB / online store: generated under data/feast/ (usually gitignored); production uses cloud-backed config
+#
+# -----------------------------------------------------------------------------
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+default:
+  image: python:3.10-slim
+  cache:
+    key: "pip-310"
+    paths:
+      - .cache/pip
+
+stages:
+  - ml
+
+# Minimal job: same as local `python pipelines/run_pipeline.py`
+# Set MLFLOW_TRACKING_URI in GitLab CI/CD variables to log runs + registry to a shared MLflow server.
+iris_mlops:
+  stage: ml
+  before_script:
+    - apt-get update -qq && apt-get install -qq -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+    - python -m venv .venv
+    - .venv/bin/pip install -U pip -q
+    - .venv/bin/pip install -r requirements.txt -q
+  script:
+    - export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-file://$CI_PROJECT_DIR/mlruns}"
+    - .venv/bin/python pipelines/run_pipeline.py
+    - .venv/bin/python src/predict.py --input sample_input.csv --output predictions.csv
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - metrics/train_metrics.json
+      - predictions.csv
+      - data/raw/iris.csv
+      - data/processed/iris_features.parquet
+
+# Optional: use DVC in CI once you have `dvc init`, a remote, and `dvc push` from dev machines.
+# Uncomment and configure DVC_REMOTE_* / cloud credentials in GitLab CI/CD variables.
+#
+# dvc_repro:
+#   stage: ml
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#   before_script:
+#     - apt-get update -qq && apt-get install -qq -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+#     - python -m venv .venv && .venv/bin/pip install -U pip -q && .venv/bin/pip install -r requirements.txt -q
+#   script:
+#     - export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-file://$CI_PROJECT_DIR/mlruns}"
+#     - .venv/bin/dvc repro
+#   artifacts:
+#     paths:
+#       - metrics/train_metrics.json

@@ -1,0 +1,35 @@
+stages:
+  download:
+    cmd: python src/download_data.py
+    outs:
+      - data/raw/iris.csv
+
+  featurize:
+    cmd: python src/featurize.py
+    deps:
+      - data/raw/iris.csv
+      - src/featurize.py
+      - feature_repo/feature_store.yaml
+      - feature_repo/repo.py
+    outs:
+      - data/processed/iris_features.parquet
+
+  train:
+    cmd: python src/train.py
+    deps:
+      - data/processed/iris_features.parquet
+      - src/train.py
+      - feature_repo/feature_store.yaml
+      - feature_repo/repo.py
+      - params.yaml
+    params:
+      - params.yaml:
+          - train.C
+          - train.max_iter
+          - train.test_size
+          - mlflow.experiment_name
+          - mlflow.registered_model_name
+          - mlflow.model_alias
+    metrics:
+      - metrics/train_metrics.json:
+          cache: false

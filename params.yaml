@@ -1,0 +1,14 @@
+data:
+  random_state: 42
+
+train:
+  model: logistic_regression
+  C: 1.0
+  max_iter: 200
+  test_size: 0.2
+
+mlflow:
+  experiment_name: iris_mlops
+  registered_model_name: IrisClassifier
+  # Preferred over legacy "Production" stage (MLflow 2.9+ aliases)
+  model_alias: champion
