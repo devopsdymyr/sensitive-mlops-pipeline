@@ -1,11 +1,15 @@
+# Use project venv so `dvc repro` finds Feast, MLflow, sklearn.
+vars:
+  - py: .venv/bin/python
+
 stages:
   download:
-    cmd: python src/download_data.py
+    cmd: ${py} src/download_data.py
     outs:
       - data/raw/iris.csv
 
   featurize:
-    cmd: python src/featurize.py
+    cmd: ${py} src/featurize.py
     deps:
       - data/raw/iris.csv
       - src/featurize.py
@@ -15,7 +19,7 @@ stages:
       - data/processed/iris_features.parquet
 
   train:
-    cmd: python src/train.py
+    cmd: ${py} src/train.py
     deps:
       - data/processed/iris_features.parquet
       - src/train.py
