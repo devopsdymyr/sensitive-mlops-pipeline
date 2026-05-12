@@ -49,7 +49,9 @@ def main() -> None:
         raise SystemExit(f"Input CSV missing columns: {sorted(missing)}")
 
     feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
-    preds = model.predict(df[feature_cols])
+    # Match training dtype and MLflow signature (infer_signature used float32 from train.py).
+    X = df[feature_cols].astype("float32")
+    preds = model.predict(X)
     out = df.copy()
     out["prediction"] = preds
     out.to_csv(args.output, index=False)
