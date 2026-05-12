@@ -1,8 +1,8 @@
 %% Mermaid source for README / diagram export. PNG: docs/mlproject_pipeline_overview.png
 
 flowchart LR
-  A["Synthetic data<br/><tt>sensitive_records.csv</tt>"] --> B["DVC<br/>dvc repro"]
-  B --> C["Features<br/><tt>pii_detector</tt> + Feast<br/><tt>.parquet</tt>"]
+  A["Synthetic data<br/><tt>sensitive_records.csv</tt>"] --> B["DVC<br/>dvc repro<br/>(MinIO remote in Docker)"]
+  B --> C["Features<br/><tt>pii_detector</tt> + Feast<br/>registry + <tt>.parquet</tt>"]
   C --> D["Train<br/>sklearn + MLflow<br/><tt>@champion</tt>"]
   D --> E["Serve<br/><tt>predict.py</tt> + FastAPI"]
   E --> F["CI<br/>GitHub Actions / GitLab"]

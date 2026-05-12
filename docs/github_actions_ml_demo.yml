@@ -1,10 +1,14 @@
-# Mirror of .github/workflows/ml-demo.yml — keep in sync for documentation / copy-paste.
-# Canonical workflow lives under .github/workflows/ (requires PAT with `workflow` scope to push changes).
+# Mirror of .github/workflows/ml-demo.yml — keep in sync when editing the workflow.
+# Canonical: .github/workflows/ml-demo.yml (push requires PAT with `workflow` scope).
 
 name: ML demo pipeline
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -19,11 +23,39 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONUNBUFFERED: "1"
-      MLFLOW_TRACKING_URI: ${{ github.workspace }}/mlruns
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Map secrets to env (hosted MLflow / MinIO / API checks)
+        env:
+          S_MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          S_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          S_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S_MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
+          S_AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          S_API_HEALTH_URL: ${{ secrets.API_HEALTH_URL }}
+          S_FEAST_UI_URL: ${{ secrets.FEAST_UI_URL }}
+        run: |
+          set -euxo pipefail
+          echo "MLFLOW_TRACKING_URI=${S_MLFLOW_TRACKING_URI:-$GITHUB_WORKSPACE/mlruns}" >> "$GITHUB_ENV"
+          if [ -n "${S_MLFLOW_S3_ENDPOINT_URL:-}" ]; then
+            echo "MLFLOW_S3_ENDPOINT_URL=$S_MLFLOW_S3_ENDPOINT_URL" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${S_AWS_ACCESS_KEY_ID:-}" ]; then
+            echo "AWS_ACCESS_KEY_ID=$S_AWS_ACCESS_KEY_ID" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${S_AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "AWS_SECRET_ACCESS_KEY=$S_AWS_SECRET_ACCESS_KEY" >> "$GITHUB_ENV"
+          fi
+          echo "AWS_DEFAULT_REGION=${S_AWS_DEFAULT_REGION:-us-east-1}" >> "$GITHUB_ENV"
+          if [ -n "${S_API_HEALTH_URL:-}" ]; then
+            echo "API_HEALTH_URL=$S_API_HEALTH_URL" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${S_FEAST_UI_URL:-}" ]; then
+            echo "FEAST_UI_URL=$S_FEAST_UI_URL" >> "$GITHUB_ENV"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,6 +75,17 @@ jobs:
 
       - name: Full pipeline + sample predict
         run: python pipelines/run_pipeline.py --full-demo
+
+      - name: Optional checks — public API + Feast UI
+        run: |
+          set -euxo pipefail
+          if [ -n "${API_HEALTH_URL:-}" ]; then
+            curl -fsS --max-time 30 "${API_HEALTH_URL%/}/healthz" | tee /tmp/ci_healthz.json
+            python -c "import json; d=json.load(open('/tmp/ci_healthz.json')); assert d.get('status')=='ok', d"
+          fi
+          if [ -n "${FEAST_UI_URL:-}" ]; then
+            curl -fsS --max-time 30 -o /dev/null "$FEAST_UI_URL"
+          fi
 
       - name: Upload artifacts
         if: always()

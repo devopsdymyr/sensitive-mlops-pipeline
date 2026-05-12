@@ -1,5 +1,6 @@
 # Sensitive data classification & risk scoring — DVC pipeline
 vars:
+  # Local: real `.venv`. Docker image: `Dockerfile` adds `.venv/bin/python` → system Python so `dvc repro` matches this path.
   - py: .venv/bin/python
 
 stages:

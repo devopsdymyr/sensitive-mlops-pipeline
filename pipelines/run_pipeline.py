@@ -12,11 +12,15 @@ tries before `dvc init`). Kubeflow Pipelines can call the same commands in conta
 CLI:
   python pipelines/run_pipeline.py
   python pipelines/run_pipeline.py --full-demo   # also runs predict on sample_input.csv
+
+Environment:
+  SKIP_DVC=1   # force script chain (generate → featurize → train) without `dvc repro` — e.g. CI without Git/.dvc or quick smoke tests.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -52,7 +56,8 @@ def main() -> None:
 
     py = sys.executable
     dvc_bin = resolve_dvc()
-    use_dvc = (ROOT / ".dvc").is_dir() and dvc_bin is not None
+    skip_dvc = os.environ.get("SKIP_DVC", "").lower() in ("1", "true", "yes")
+    use_dvc = not skip_dvc and (ROOT / ".dvc").is_dir() and dvc_bin is not None
 
     if use_dvc:
         print("\n=== DVC pipeline (dvc repro) — versions data + stages ===", flush=True)
@@ -78,6 +83,7 @@ def main() -> None:
     print(
         "\nPipeline finished.\n"
         "  • MLflow UI: `mlflow ui`\n"
+        "  • Docker stack (Feast UI + DVC + MinIO): docs/DOCKER.md\n"
         "  • Inference CSV: `python src/predict.py --input sample_input.csv`\n"
         "  • FastAPI + metrics: `.venv/bin/uvicorn src.serve:app --host 127.0.0.1 --port 8080`\n"
         "  • Optional lakeFS: `python src/upload_data_lakefs.py` (after quickstart server is up)\n",

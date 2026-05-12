@@ -182,5 +182,5 @@ See README.md section "Model format and MLflow Model Registry" for full detail.
   # If Feast project config changed name, remove data/feast/ once then re-featurize.
 
 --------------------------------------------------------------------------------
-  GitHub vs GitLab push + CI: README.md section "Git hosting & CI".
+  GitHub vs GitLab push + CI: README.md section "Git hosting & CI". Public VM smoke test: `make public-test` (see docs/DOCKER.md).
 ================================================================================

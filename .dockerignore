@@ -1,0 +1,14 @@
+.venv
+venv
+__pycache__
+*.py[cod]
+.github
+.cursor
+mlruns
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data/raw/*.csv
+data/processed/*.parquet
+data/feast/
+predictions.csv

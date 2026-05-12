@@ -25,4 +25,7 @@ data/processed/*.parquet
 # Local test outputs
 predictions.csv
 
+# Docker Compose secrets (copy from .env.docker.example)
+.env
+
 models/risk_label_classes.json

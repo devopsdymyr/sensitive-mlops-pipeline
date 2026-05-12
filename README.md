@@ -7,9 +7,9 @@
 1. **Generate & version** — Synthetic `raw_text` and labels are written to CSV; **DVC** (`dvc.yaml`) chains **`generate_data` → `featurize` → `train`** so outputs stay reproducible.  
 2. **Feature store** — **`pii_detector.py`** turns text into numeric PII-style signals; **Feast** applies definitions and writes **`sensitive_features.parquet`** for training.  
 3. **Train & register** — **`LogisticRegression`** learns **LOW / MEDIUM / HIGH** risk from those features; **MLflow** logs the run and registers **`SensitiveDataRiskClassifier`** with alias **`champion`**.  
-4. **Consume** — **`predict.py`** scores CSV rows; **FastAPI** (`serve.py`) exposes **`/v1/score`**, **`/v1/analyze`**, and health/metrics — the same **`pipelines/run_pipeline.py --full-demo`** entrypoint runs in **GitHub Actions** (manual) and **GitLab CI** for enterprise builds.
+4. **Consume** — **`predict.py`** scores CSV rows; **FastAPI** (`serve.py`) exposes **`/v1/score`**, **`/v1/analyze`**, and health/metrics — the same **`pipelines/run_pipeline.py --full-demo`** entrypoint runs in **GitHub Actions** (push/PR to **`main`** or manual) and **GitLab CI** for enterprise builds.
 
-**Links:** [Plain-text README](README.txt) · [Mermaid source](docs/pipeline_overview.mmd) · [Push to GitHub](docs/GITHUB_SETUP.md)
+**Links:** [Plain-text README](README.txt) · [Mermaid source](docs/pipeline_overview.mmd) · [Push to GitHub](docs/GITHUB_SETUP.md) · [Docker + self-hosted MLflow/MinIO](docs/DOCKER.md)
 
 This repository is a **demo** (not certified compliance software).
 
@@ -31,7 +31,7 @@ If the environment already exists, you only need:
 .venv/bin/python pipelines/run_pipeline.py --full-demo
 ```
 
-That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI:** **`.gitlab-ci.yml`** runs **`pipelines/run_pipeline.py --full-demo`** on push/MR (45m timeout, **`PATH`** includes **`.venv/bin`** for **DVC**). **GitHub Actions:** **`.github/workflows/ml-demo.yml`** — **Actions → “ML demo pipeline” → Run workflow** (45m timeout, **`ubuntu-22.04`**, least-privilege **`permissions`**).
+That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI:** **`.gitlab-ci.yml`** runs **`pipelines/run_pipeline.py --full-demo`** on push/MR (45m timeout, **`PATH`** includes **`.venv/bin`** for **DVC**). **GitHub Actions:** **`.github/workflows/ml-demo.yml`** — runs on **push** / **pull_request** to **`main`** or **Actions → “ML demo pipeline” → Run workflow** (45m timeout, **`ubuntu-22.04`**, least-privilege **`permissions`**). Optional **secrets** point MLflow/S3 at your **public hosted** URLs and smoke-test **API** / **Feast UI** — see **`docs/GITHUB_SETUP.md`**.
 
 ---
 
@@ -60,7 +60,7 @@ Nothing in this repo **automatically** retrains on a timer or on API traffic by 
 | **You (local / VM)** | Run **`.venv/bin/python pipelines/run_pipeline.py`**. If **`.dvc/`** exists, that script runs **`dvc repro`**, which reads **`dvc.yaml`** / **`dvc.lock`** and executes stages whose inputs or dependencies changed (`generate_data` → `featurize` → `train`). If **`.dvc/`** is missing, the script runs the same three steps as plain **`python`** calls in order (no DVC cache). |
 | **You (DVC only)** | Run **`.venv/bin/dvc repro`** yourself — same effect as above when DVC is initialized. |
 | **GitLab CI** | On a **Git push / merge request / manual pipeline** (per your GitLab project rules), the job in **`.gitlab-ci.yml`** (`sensitive_data_mlops`) creates a venv, installs deps, then runs **`pipelines/run_pipeline.py --full-demo`** (pipeline + **`predictions.csv`**). Set **`MLFLOW_TRACKING_URI`** in CI variables if you want runs on a shared MLflow server. |
-| **GitHub Actions** | **`.github/workflows/ml-demo.yml`** — manual **Actions → “ML demo pipeline” → Run workflow** (`ubuntu-22.04`, 45m job timeout, `permissions: contents: read`). |
+| **GitHub Actions** | **`.github/workflows/ml-demo.yml`** — **push** / **PR** to **`main`** or manual **Actions → “ML demo pipeline”** (`ubuntu-22.04`, 45m). Secrets for hosted **MLflow**, **MinIO/S3**, **`/healthz`**, **Feast UI**: **`docs/GITHUB_SETUP.md`**. |
 | **One-shot script** | **`bash scripts/run_full_demo.sh`** or **`make demo`** — bootstraps venv + DVC (if needed) + pipeline + predict. |
 
 **Not a training trigger:** calling **FastAPI** (`/v1/score`, `/v1/analyze`) only **loads** the already-trained model and scores text — it does **not** start `train.py` or `dvc repro`.
@@ -97,14 +97,27 @@ git push -u origin main
 **Other tools (optional, not required for the demo)**  
 - **MLflow tracking server**: set **`MLFLOW_TRACKING_URI`** in CI or your shell so runs and registry are shared (not only `./mlruns` on disk).  
 - **DVC remote** (S3, GCS, etc.): for versioning large **`data/`** outside Git; add **`dvc remote add`** and **`dvc push`** per [DVC remotes](https://dvc.org/doc/command-reference/remote).  
-- **Docker / Kubernetes**: wrap the same commands (`pipelines/run_pipeline.py`, `uvicorn`) in images — not defined in this minimal repo.
+- **Docker / Kubernetes**: **`docker-compose.yml`** runs Postgres, MinIO, MLflow, **Feast UI**, **`dvc repro`** (train profile), and FastAPI — see **[docs/DOCKER.md](docs/DOCKER.md)**.
 
 ---
 
 ## Enterprise CI notes
 
-- **GitHub Actions** (`.github/workflows/ml-demo.yml`): **`ubuntu-22.04`**, **45-minute** job timeout, **`permissions: contents: read`**, **`pip`** cache keyed on **`requirements.txt`**, **`PYTHONUNBUFFERED`**, and strict **`bash -euxo pipefail`** on install. Set a repository **secret** **`MLFLOW_TRACKING_URI`** if MLflow runs on a shared server. For **self-hosted runners**, replace **`runs-on: ubuntu-22.04`** with your runner label(s).
+- **GitHub Actions** (`.github/workflows/ml-demo.yml`): **`ubuntu-22.04`**, **45-minute** job timeout, **`permissions: contents: read`**, **`pip`** cache keyed on **`requirements.txt`**, **`PYTHONUNBUFFERED`**, and strict **`bash -euxo pipefail`** on install. **Triggers:** **`workflow_dispatch`**, **`push`**, and **`pull_request`** to **`main`**. **Optional repository secrets** (hosted / public endpoints): **`MLFLOW_TRACKING_URI`**, **`MLFLOW_S3_ENDPOINT_URL`**, **`AWS_ACCESS_KEY_ID`**, **`AWS_SECRET_ACCESS_KEY`**, **`AWS_DEFAULT_REGION`**, **`API_HEALTH_URL`** (base URL; CI checks **`/healthz`**), **`FEAST_UI_URL`** (full URL; CI expects **200**). Unset secrets → local **`$GITHUB_WORKSPACE/mlruns`**. Table and fork behavior: **`docs/GITHUB_SETUP.md`**. For **self-hosted runners**, replace **`runs-on: ubuntu-22.04`** with your runner label(s).
 - **GitLab CI** (`.gitlab-ci.yml`): **45-minute** job timeout; **`PATH`** prepends **`.venv/bin`** so **`dvc init`** works after **`pip install`**. Configure **`MLFLOW_TRACKING_URI`** under **Settings → CI/CD → Variables** for enterprise tracking.
+
+### Docker (self-hosted MLflow + MinIO + Feast UI + DVC + API)
+
+Run the same codebase as containers: **PostgreSQL** (MLflow metadata), **MinIO** (MLflow + **DVC** artifacts), **MLflow**, **Feast UI** (registry under volume `feast_registry`), **`dvc repro`** via the **`train`** profile, and **FastAPI**.
+
+```bash
+cp .env.docker.example .env   # edit secrets; set PUBLIC_HOST to this VM's IP (see file)
+docker compose build && docker compose up -d
+docker compose --profile train run --rm train && docker compose restart app
+make public-test   # optional: curl MLflow / API / Feast / MinIO on PUBLIC_HOST
+```
+
+Full integration table, public-IP / firewall notes, and **`make public-test`**: **[docs/DOCKER.md](docs/DOCKER.md)**. GitHub Actions secret examples for this host: **[docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md)** (update IP if your VM changes).
 
 ---
 
