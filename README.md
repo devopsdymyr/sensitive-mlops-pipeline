@@ -238,6 +238,7 @@ MLflow records a new run; DVC reruns stages when dependencies or recorded params
 | **Feast errors after upgrading `entity_key_serialization_version`** | Remove `data/feast/` and run the featurize stage again so the registry is recreated. |
 | **`Missing ... iris.csv` / featurize errors** | Run **download** first: `.venv/bin/python src/download_data.py` or the full `run_pipeline.py`. |
 | **DVC errors about Git** | Run `git init` and commit files, **or** use `dvc init --no-scm`. |
+| **`output 'data/raw/iris.csv' is already tracked by SCM (Git)`** | Data outputs must be **ignored by Git** so DVC can own them. Run: `git rm -r --cached data/raw/iris.csv data/processed/iris_features.parquet` (ignore errors if a path was never tracked), then `git commit -m "Stop tracking data outputs; DVC owns them"`. Ensure `.gitignore` lists `data/raw/*.csv` and `data/processed/*.parquet`, then `dvc repro` again. |
 | **Predict cannot load registry model** | Run training once. Default URI is `models:/<name>@champion` from `params.yaml` (`registered_model_name`, `model_alias`). Use `--model-uri runs:/<run_id>/model` if needed. |
 
 ---
