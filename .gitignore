@@ -1,5 +1,7 @@
 .venv/
 venv/
+.cursor/
+
 __pycache__/
 *.py[cod]
 .pytest_cache/

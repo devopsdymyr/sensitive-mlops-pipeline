@@ -138,7 +138,7 @@ See README.md section "Model format and MLflow Model Registry" for full detail.
   VALIDATE FROM START TO END (summary)
 --------------------------------------------------------------------------------
 
-  Full steps, expected metrics, API curls, checklist table: README.md -> "End-to-end validation".
+  Full step-by-step use case + how it works + tests: README.md (single flow).
 
   From project root:
     python3 -m venv .venv
@@ -161,12 +161,14 @@ See README.md section "Model format and MLflow Model Registry" for full detail.
   QUICK COMMANDS
 --------------------------------------------------------------------------------
 
+  One-shot full demo (venv + deps + DVC if needed + pipeline + predict):
+    bash scripts/run_full_demo.sh
+    # or:  make demo
+
   python3 -m venv .venv
   .venv/bin/pip install -U pip
   .venv/bin/pip install -r requirements.txt
-  .venv/bin/python pipelines/run_pipeline.py
-
-  .venv/bin/python src/predict.py --input sample_input.csv --output predictions.csv
+  .venv/bin/python pipelines/run_pipeline.py --full-demo
 
   .venv/bin/mlflow ui --host 127.0.0.1 --port 5000
 
@@ -180,5 +182,5 @@ See README.md section "Model format and MLflow Model Registry" for full detail.
   # If Feast project config changed name, remove data/feast/ once then re-featurize.
 
 --------------------------------------------------------------------------------
-  Also see README.md ("End-to-end validation" for execute-and-test from zero).
+  GitHub vs GitLab push + CI: README.md section "Git hosting & CI".
 ================================================================================

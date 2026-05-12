@@ -1,0 +1,43 @@
+# Optional: run the same demo pipeline as locally / GitLab CI (GitHub-hosted runners).
+# Enable in your fork: Actions tab → "ML demo pipeline" → Run workflow.
+
+name: ML demo pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ensure DVC (if not in repo)
+        run: test -d .dvc || dvc init --no-scm
+
+      - name: Full pipeline + sample predict
+        env:
+          MLFLOW_TRACKING_URI: ${{ github.workspace }}/mlruns
+        run: python pipelines/run_pipeline.py --full-demo
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-outputs
+          path: |
+            metrics/train_metrics.json
+            predictions.csv
+            data/raw/sensitive_records.csv
+            data/processed/sensitive_features.parquet

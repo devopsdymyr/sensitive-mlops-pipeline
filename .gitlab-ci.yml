@@ -48,8 +48,7 @@ sensitive_data_mlops:
     - .venv/bin/pip install -r requirements.txt -q
   script:
     - export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-file://$CI_PROJECT_DIR/mlruns}"
-    - .venv/bin/python pipelines/run_pipeline.py
-    - .venv/bin/python src/predict.py --input sample_input.csv --output predictions.csv
+    - .venv/bin/python pipelines/run_pipeline.py --full-demo
   artifacts:
     when: always
     expire_in: 30 days
