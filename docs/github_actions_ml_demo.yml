@@ -1,5 +1,8 @@
-# Optional: run the same demo pipeline as locally / GitLab CI (GitHub-hosted runners).
-# Enable in your fork: Actions tab → "ML demo pipeline" → Run workflow.
+# Copy this file to:  .github/workflows/ml-demo.yml
+# (GitHub rejects pushes that create/update workflow files unless your token has the "workflow" scope.)
+#
+# After copying locally:  mkdir -p .github/workflows && cp docs/github_actions_ml_demo.yml .github/workflows/ml-demo.yml
+# Then commit and push using a Classic PAT with scopes: repo + workflow.
 
 name: ML demo pipeline
 

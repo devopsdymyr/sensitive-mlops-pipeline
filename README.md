@@ -22,7 +22,7 @@ If the environment already exists, you only need:
 .venv/bin/python pipelines/run_pipeline.py --full-demo
 ```
 
-That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI** uses the same **`--full-demo`** flag (see **`.gitlab-ci.yml`**). **GitHub:** **Actions → “ML demo pipeline” → Run workflow** (see **`.github/workflows/ml-demo.yml`**).
+That runs **`dvc repro`** (or the three scripts without DVC) and then **`src/predict.py`** on **`sample_input.csv`**. **GitLab CI** uses the same **`--full-demo`** flag (see **`.gitlab-ci.yml`**). **GitHub Actions:** workflow definition is kept as **`docs/github_actions_ml_demo.yml`** (copy to **`.github/workflows/ml-demo.yml`** when your PAT includes the **`workflow`** scope — see **`docs/GITHUB_SETUP.md`**).
 
 ---
 
@@ -51,7 +51,7 @@ Nothing in this repo **automatically** retrains on a timer or on API traffic by 
 | **You (local / VM)** | Run **`.venv/bin/python pipelines/run_pipeline.py`**. If **`.dvc/`** exists, that script runs **`dvc repro`**, which reads **`dvc.yaml`** / **`dvc.lock`** and executes stages whose inputs or dependencies changed (`generate_data` → `featurize` → `train`). If **`.dvc/`** is missing, the script runs the same three steps as plain **`python`** calls in order (no DVC cache). |
 | **You (DVC only)** | Run **`.venv/bin/dvc repro`** yourself — same effect as above when DVC is initialized. |
 | **GitLab CI** | On a **Git push / merge request / manual pipeline** (per your GitLab project rules), the job in **`.gitlab-ci.yml`** (`sensitive_data_mlops`) creates a venv, installs deps, then runs **`pipelines/run_pipeline.py --full-demo`** (pipeline + **`predictions.csv`**). Set **`MLFLOW_TRACKING_URI`** in CI variables if you want runs on a shared MLflow server. |
-| **GitHub Actions** | Manual run: **Actions** → **ML demo pipeline** → **Run workflow** (`.github/workflows/ml-demo.yml`). |
+| **GitHub Actions** | Workflow YAML is **`docs/github_actions_ml_demo.yml`** (not under **`.github/workflows/`** so HTTPS pushes work without OAuth **`workflow`** scope). Copy it to **`.github/workflows/ml-demo.yml`** when you want Actions; then use a PAT with **`repo` + `workflow`** to push, or add the file in the GitHub UI. |
 | **One-shot script** | **`bash scripts/run_full_demo.sh`** or **`make demo`** — bootstraps venv + DVC (if needed) + pipeline + predict. |
 
 **Not a training trigger:** calling **FastAPI** (`/v1/score`, `/v1/analyze`) only **loads** the already-trained model and scores text — it does **not** start `train.py` or `dvc repro`.
@@ -66,7 +66,7 @@ You **do not** need both **GitHub** and **GitLab**. Pick **one** place to host t
 
 | If you use… | What runs in CI | What you do |
 |-------------|-----------------|--------------|
-| **GitHub** | **`.github/workflows/ml-demo.yml`** — manual **Actions → “ML demo pipeline” → Run workflow** | Create a new (empty) repository on GitHub → add **`origin`** → **`git push -u origin main`** (or `master`). In the repo: **Settings → Actions → General** — allow Actions if prompted. No edits to the workflow are required for the default demo. |
+| **GitHub** | **docs/github_actions_ml_demo.yml** — copy to **`.github/workflows/ml-demo.yml`** when you want Actions. | Create empty repo → **`git remote`** → **`git push`** (default branch without **`.github/workflows/`** avoids OAuth **`workflow`** scope errors). See **`docs/GITHUB_SETUP.md`**. |
 | **GitLab** | **`.gitlab-ci.yml`** — job **`sensitive_data_mlops`** on **push / merge request** (depends on your project’s CI rules) | Create a new GitLab project → add **`origin`** → **`git push`**. Optional: **Settings → CI/CD → Variables** — set **`MLFLOW_TRACKING_URI`** to a shared MLflow server (otherwise CI uses `file://…/mlruns` in the job workspace). |
 
 **Pushing an existing clone (first time)**
@@ -83,7 +83,7 @@ git push -u origin main
 
 **Removing the CI you do not use (optional, for clarity)**  
 - GitHub-only: delete **`.gitlab-ci.yml`**.  
-- GitLab-only: delete **`.github/workflows/`** (or the whole **`.github`** folder).
+- GitLab-only: delete **`docs/github_actions_ml_demo.yml`** and any **`.github/`** folder if present.
 
 **Other tools (optional, not required for the demo)**  
 - **MLflow tracking server**: set **`MLFLOW_TRACKING_URI`** in CI or your shell so runs and registry are shared (not only `./mlruns` on disk).  
