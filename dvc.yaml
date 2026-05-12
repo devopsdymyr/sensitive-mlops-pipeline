@@ -1,27 +1,28 @@
-# Use project venv so `dvc repro` finds Feast, MLflow, sklearn.
+# Sensitive data classification & risk scoring — DVC pipeline
 vars:
   - py: .venv/bin/python
 
 stages:
-  download:
-    cmd: ${py} src/download_data.py
+  generate_data:
+    cmd: ${py} src/generate_dataset.py
     outs:
-      - data/raw/iris.csv
+      - data/raw/sensitive_records.csv
 
   featurize:
     cmd: ${py} src/featurize.py
     deps:
-      - data/raw/iris.csv
+      - data/raw/sensitive_records.csv
       - src/featurize.py
+      - src/pii_detector.py
       - feature_repo/feature_store.yaml
       - feature_repo/repo.py
     outs:
-      - data/processed/iris_features.parquet
+      - data/processed/sensitive_features.parquet
 
   train:
     cmd: ${py} src/train.py
     deps:
-      - data/processed/iris_features.parquet
+      - data/processed/sensitive_features.parquet
       - src/train.py
       - feature_repo/feature_store.yaml
       - feature_repo/repo.py

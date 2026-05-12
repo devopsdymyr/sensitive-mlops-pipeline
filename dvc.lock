@@ -10,60 +10,71 @@ stages:
   featurize:
     cmd: .venv/bin/python src/featurize.py
     deps:
-    - path: data/raw/iris.csv
+    - path: data/raw/sensitive_records.csv
       hash: md5
-      md5: 4224576f0267bf88902f87f0f6200967
-      size: 2757
+      md5: daf0028567a2440595d6c7826cb8bb73
+      size: 290494
     - path: feature_repo/feature_store.yaml
       hash: md5
-      md5: 98757b63c5c7208aab623781fc0bccc2
-      size: 203
+      md5: f0247cc5e27a8bf9b481faf1814c7ebb
+      size: 213
     - path: feature_repo/repo.py
       hash: md5
-      md5: 13265ed1831a9bbb69364186f1b48152
-      size: 1003
+      md5: 2938b8fb45a7a24ee465a3897f1d674a
+      size: 1215
     - path: src/featurize.py
       hash: md5
-      md5: 204fd71428d4c9d808f7ec63be8fd67d
-      size: 1910
-    outs:
-    - path: data/processed/iris_features.parquet
+      md5: f18d0fe752b89ddef587f26bec8d0945
+      size: 1614
+    - path: src/pii_detector.py
       hash: md5
-      md5: 46b8cb22b3d8d090952d60bc5f26526c
-      size: 7227
+      md5: eb28563fa12ba3e6680148520f7acef3
+      size: 6246
+    outs:
+    - path: data/processed/sensitive_features.parquet
+      hash: md5
+      md5: 5b9619e96bb8b345abb3d733d8a4cc9d
+      size: 71384
   train:
     cmd: .venv/bin/python src/train.py
     deps:
-    - path: data/processed/iris_features.parquet
+    - path: data/processed/sensitive_features.parquet
       hash: md5
-      md5: 46b8cb22b3d8d090952d60bc5f26526c
-      size: 7227
+      md5: 5b9619e96bb8b345abb3d733d8a4cc9d
+      size: 71384
     - path: feature_repo/feature_store.yaml
       hash: md5
-      md5: 98757b63c5c7208aab623781fc0bccc2
-      size: 203
+      md5: f0247cc5e27a8bf9b481faf1814c7ebb
+      size: 213
     - path: feature_repo/repo.py
       hash: md5
-      md5: 13265ed1831a9bbb69364186f1b48152
-      size: 1003
+      md5: 2938b8fb45a7a24ee465a3897f1d674a
+      size: 1215
     - path: params.yaml
       hash: md5
-      md5: a3e19fea5a8ad871bb0a9da1c741499b
-      size: 274
+      md5: ea2063c431c87d0838dadc34e2ec927d
+      size: 230
     - path: src/train.py
       hash: md5
-      md5: 730e30606153de300a864ab7b81b4234
-      size: 4788
+      md5: 3177301858636ea12a815c14cf351c0d
+      size: 5472
     params:
       params.yaml:
-        mlflow.experiment_name: iris_mlops
+        mlflow.experiment_name: dpdp_sensitive_risk
         mlflow.model_alias: champion
-        mlflow.registered_model_name: IrisClassifier
+        mlflow.registered_model_name: SensitiveDataRiskClassifier
         train.C: 1.0
-        train.max_iter: 200
+        train.max_iter: 2000
         train.test_size: 0.2
     outs:
     - path: metrics/train_metrics.json
       hash: md5
-      md5: 5b2e032be71e78a923576f92b17c385a
-      size: 197
+      md5: 08010a3982b1d1f062ade38a79255cfb
+      size: 184
+  generate_data:
+    cmd: .venv/bin/python src/generate_dataset.py
+    outs:
+    - path: data/raw/sensitive_records.csv
+      hash: md5
+      md5: daf0028567a2440595d6c7826cb8bb73
+      size: 290494

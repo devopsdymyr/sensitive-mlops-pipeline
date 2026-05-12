@@ -15,7 +15,7 @@
 # MLflow (Tracking + Model Registry)
 #   • Local dev: ./mlruns on disk (not visible in GitLab except if you upload artifacts)
 #   • Team setup: run an MLflow Tracking Server (VM/K8s/docker); set MLFLOW_TRACKING_URI in CI
-#   • "Registry" in MLflow = server-side model names/versions (IrisClassifier, etc.) — view in MLflow UI
+#   • "Registry" in MLflow = server-side model names/versions (e.g. SensitiveDataRiskClassifier) — view in MLflow UI
 #   • GitLab's own "Model registry" (if your tier has it) is separate from MLflow unless you integrate explicitly
 #
 # Feast
@@ -39,7 +39,7 @@ stages:
 
 # Minimal job: same as local `python pipelines/run_pipeline.py`
 # Set MLFLOW_TRACKING_URI in GitLab CI/CD variables to log runs + registry to a shared MLflow server.
-iris_mlops:
+sensitive_data_mlops:
   stage: ml
   before_script:
     - apt-get update -qq && apt-get install -qq -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
@@ -56,8 +56,8 @@ iris_mlops:
     paths:
       - metrics/train_metrics.json
       - predictions.csv
-      - data/raw/iris.csv
-      - data/processed/iris_features.parquet
+      - data/raw/sensitive_records.csv
+      - data/processed/sensitive_features.parquet
 
 # Optional: use DVC in CI once you have `dvc init`, a remote, and `dvc push` from dev machines.
 # Uncomment and configure DVC_REMOTE_* / cloud credentials in GitLab CI/CD variables.

@@ -1,0 +1,14 @@
+# Minimal scrape config — point Prometheus at the FastAPI app started with:
+#   .venv/bin/python -m uvicorn src.serve:app --host 0.0.0.0 --port 8080
+#
+# Run Prometheus (example):
+#   docker run --net=host -v $PWD/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: sensitive-risk-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8080"]

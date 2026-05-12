@@ -56,14 +56,15 @@ def main() -> None:
                 "\nNote: `.dvc/` not found — running scripts only (no DVC cache).\n"
                 "Best practice: `dvc init` (with Git) or `dvc init --no-scm`, then re-run for `dvc repro`.\n"
             )
-        run_step("Download raw data", [py, "src/download_data.py"])
+        run_step("Generate synthetic records", [py, "src/generate_dataset.py"])
         run_step("Featurize + Feast apply", [py, "src/featurize.py"])
         run_step("Train + MLflow registry", [py, "src/train.py"])
 
     print(
         "\nPipeline finished.\n"
         "  • MLflow UI: `mlflow ui`\n"
-        "  • Inference: `python src/predict.py --input sample_input.csv`\n"
+        "  • Inference CSV: `python src/predict.py --input sample_input.csv`\n"
+        "  • FastAPI + metrics: `.venv/bin/uvicorn src.serve:app --host 127.0.0.1 --port 8080`\n"
         "  • Optional lakeFS: `python src/upload_data_lakefs.py` (after quickstart server is up)\n"
     )
 

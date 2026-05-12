@@ -23,6 +23,4 @@ data/processed/*.parquet
 # Local test outputs
 predictions.csv
 
-# IDE
-.idea/
-.vscode/
+models/risk_label_classes.json

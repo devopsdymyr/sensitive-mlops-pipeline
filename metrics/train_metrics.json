@@ -1,7 +1,7 @@
 {
-  "run_id": "403d98fa379a4156b96d3d2ec41a8a73",
-  "accuracy": 0.9666666666666667,
-  "f1_macro": 0.9665831244778612,
-  "precision_macro": 0.9696969696969697,
-  "recall_macro": 0.9666666666666667
+  "run_id": "f78a65c844794e2f828afd617cb3c053",
+  "accuracy": 0.998,
+  "f1_macro": 0.9980820344325574,
+  "precision_macro": 0.9984276729559749,
+  "recall_macro": 0.9977477477477477
 }

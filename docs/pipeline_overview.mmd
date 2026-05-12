@@ -1,0 +1,14 @@
+%% Mermaid source for the pipeline overview (render in GitHub, Mermaid Live, or VS Code).
+%% PNG export: docs/mlproject_pipeline_overview.png (regenerate when this changes).
+
+flowchart LR
+  A["Raw / synthetic<br/><tt>sensitive_records.csv</tt>"] --> B["DVC<br/>dvc repro"]
+  B --> C["PII features<br/><tt>pii_detector.py</tt>"]
+  C --> D[("Parquet<br/><tt>sensitive_features.parquet</tt>")]
+  D --> E["Feast<br/>feature store"]
+  E --> F["Train<br/>sklearn LogisticRegression"]
+  F --> G["MLflow Tracking<br/>params · metrics · signature"]
+  F --> H["MLflow Model bundle<br/><tt>artifacts/model/</tt><br/><tt>MLmodel</tt> + <tt>model.pkl</tt> + env YAML"]
+  H --> I["Model Registry: SensitiveDataRiskClassifier<br/>version + @champion alias<br/>metadata + URI to run artifacts"]
+  I --> J["Inference<br/><tt>predict.py</tt><br/>FastAPI <tt>POST /v1/analyze</tt> · <tt>/v1/score</tt>"]
+  J --> K["Observability<br/>Prometheus /metrics · Grafana"]

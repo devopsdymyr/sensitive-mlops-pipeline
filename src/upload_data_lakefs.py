@@ -43,7 +43,7 @@ def ensure_lakectl_env_defaults() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Upload Iris datasets from disk to lakeFS.")
+    parser = argparse.ArgumentParser(description="Upload sensitive-data pipeline artifacts to lakeFS.")
     parser.add_argument(
         "--repo",
         default=os.environ.get("LAKEFS_REPO", "mlproject-data"),
@@ -62,11 +62,11 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
-    raw_csv = root / "data" / "raw" / "iris.csv"
-    processed_parquet = root / "data" / "processed" / "iris_features.parquet"
+    raw_csv = root / "data" / "raw" / "sensitive_records.csv"
+    processed_parquet = root / "data" / "processed" / "sensitive_features.parquet"
 
     if not raw_csv.is_file():
-        raise SystemExit(f"Missing {raw_csv}. Run download_data or the pipeline first.")
+        raise SystemExit(f"Missing {raw_csv}. Run the pipeline (generate_dataset) first.")
 
     ensure_lakectl_env_defaults()
     namespace = args.storage_namespace or f"local://{args.repo}"
@@ -77,22 +77,25 @@ def main() -> None:
     branch = repo.branch(args.branch)
 
     raw_bytes = raw_csv.read_bytes()
-    branch.object("raw/iris.csv").upload(raw_bytes, mode="wb", content_type="text/csv")
+    branch.object("raw/sensitive_records.csv").upload(raw_bytes, mode="wb", content_type="text/csv")
 
     if processed_parquet.is_file():
-        pq = processed_parquet.read_bytes()
-        branch.object("processed/iris_features.parquet").upload(
-            pq, mode="wb", content_type="application/octet-stream"
+        branch.object("processed/sensitive_features.parquet").upload(
+            processed_parquet.read_bytes(), mode="wb", content_type="application/octet-stream"
         )
 
-    msg = "Add raw iris.csv" if not processed_parquet.is_file() else "Add raw iris.csv and processed parquet"
+    msg = (
+        "Add raw sensitive_records.csv"
+        if not processed_parquet.is_file()
+        else "Add raw sensitive_records.csv and processed sensitive_features.parquet"
+    )
     branch.commit(message=msg)
 
     extra = ""
     if processed_parquet.is_file():
-        extra = f" and .../processed/iris_features.parquet ({processed_parquet.stat().st_size} bytes on disk)"
+        extra = f" and .../processed/sensitive_features.parquet ({processed_parquet.stat().st_size} bytes on disk)"
 
-    print(f"lakeFS upload complete: lakefs://{args.repo}/{args.branch}/raw/iris.csv{extra}")
+    print(f"lakeFS upload complete: lakefs://{args.repo}/{args.branch}/raw/sensitive_records.csv{extra}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Stage 3: train sklearn model using Feast offline features + MLflow tracking/registry."""
+"""Train risk-label classifier from Feast offline features + MLflow (DPDP-style demo)."""
 
 from __future__ import annotations
 
@@ -16,12 +16,24 @@ from mlflow.tracking import MlflowClient
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 ROOT = Path(__file__).resolve().parents[1]
 PARAMS_PATH = ROOT / "params.yaml"
-PROCESSED = ROOT / "data" / "processed" / "iris_features.parquet"
+PROCESSED = ROOT / "data" / "processed" / "sensitive_features.parquet"
 FEAST_REPO = ROOT / "feature_repo"
 METRICS_DIR = ROOT / "metrics"
+
+FEATURE_REFS = [
+    "sensitive_risk_features:pan_hits",
+    "sensitive_risk_features:aadhaar_hits",
+    "sensitive_risk_features:email_hits",
+    "sensitive_risk_features:phone_hits",
+    "sensitive_risk_features:account_hits",
+    "sensitive_risk_features:keyword_hits",
+    "sensitive_risk_features:text_length",
+]
+FEATURE_COLS = [r.split(":")[1] for r in FEATURE_REFS]
 
 
 def load_params() -> dict:
@@ -49,25 +61,19 @@ def main() -> None:
     if not PROCESSED.is_file():
         raise SystemExit(f"Missing {PROCESSED}. Run featurize first.")
 
-    labels = pd.read_parquet(PROCESSED, columns=["iris_id", "target"])
+    labels = pd.read_parquet(PROCESSED, columns=["record_id", "risk_label"])
 
     store = FeatureStore(repo_path=str(FEAST_REPO))
-    entity_df = pd.read_parquet(PROCESSED, columns=["iris_id", "event_timestamp"]).drop_duplicates(
-        subset=["iris_id"]
+    entity_df = pd.read_parquet(PROCESSED, columns=["record_id", "event_timestamp"]).drop_duplicates(
+        subset=["record_id"]
     )
 
-    feature_refs = [
-        "iris_features:sepal_length",
-        "iris_features:sepal_width",
-        "iris_features:petal_length",
-        "iris_features:petal_width",
-    ]
-    fv_df = store.get_historical_features(entity_df=entity_df, features=feature_refs).to_df()
-    df = fv_df.merge(labels, on="iris_id", how="inner")
+    fv_df = store.get_historical_features(entity_df=entity_df, features=FEATURE_REFS).to_df()
+    df = fv_df.merge(labels, on="record_id", how="inner")
 
-    feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
-    X = df[feature_cols].astype("float32")
-    y = df["target"].astype(int)
+    X = df[FEATURE_COLS].astype("float32")
+    le = LabelEncoder()
+    y = le.fit_transform(df["risk_label"].astype(str))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -84,6 +90,8 @@ def main() -> None:
     with mlflow.start_run() as run:
         for k, v in _git_tags_from_env().items():
             mlflow.set_tag(k, v)
+        mlflow.set_tag("use_case", "sensitive_data_classification")
+        mlflow.log_param("label_classes", ",".join(le.classes_))
 
         mlflow.log_params(
             {
@@ -104,8 +112,8 @@ def main() -> None:
         metrics = {
             "accuracy": float(accuracy_score(y_test, preds)),
             "f1_macro": float(f1_score(y_test, preds, average="macro")),
-            "precision_macro": float(precision_score(y_test, preds, average="macro")),
-            "recall_macro": float(recall_score(y_test, preds, average="macro")),
+            "precision_macro": float(precision_score(y_test, preds, average="macro", zero_division=0)),
+            "recall_macro": float(recall_score(y_test, preds, average="macro", zero_division=0)),
         }
         mlflow.log_metrics(metrics)
 
@@ -119,6 +127,13 @@ def main() -> None:
             signature=signature,
             input_example=input_example,
         )
+
+        models_dir = ROOT / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+        classes_path = models_dir / "risk_label_classes.json"
+        with classes_path.open("w") as f:
+            json.dump({"classes": list(le.classes_)}, f, indent=2)
+        mlflow.log_artifact(str(classes_path), artifact_path="metadata")
 
         METRICS_DIR.mkdir(parents=True, exist_ok=True)
         metrics_path = METRICS_DIR / "train_metrics.json"
@@ -136,7 +151,7 @@ def main() -> None:
             client.set_registered_model_alias(registered_name, model_alias, mv.version)
             print(f"Model {registered_name} v{mv.version} -> alias @{model_alias}")
     except MlflowException as exc:
-        print(f"Skipping model alias ({exc}). Load by run URI from MLflow UI if needed.")
+        print(f"Skipping model alias ({exc}).")
 
 
 if __name__ == "__main__":

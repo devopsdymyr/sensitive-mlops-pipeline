@@ -1,4 +1,4 @@
-project: iris_mlops
+project: dpdp_sensitive_mlops
 registry: ../data/feast/registry.db
 provider: local
 entity_key_serialization_version: 3

@@ -4,11 +4,10 @@ data:
 train:
   model: logistic_regression
   C: 1.0
-  max_iter: 200
+  max_iter: 2000
   test_size: 0.2
 
 mlflow:
-  experiment_name: iris_mlops
-  registered_model_name: IrisClassifier
-  # Preferred over legacy "Production" stage (MLflow 2.9+ aliases)
+  experiment_name: dpdp_sensitive_risk
+  registered_model_name: SensitiveDataRiskClassifier
   model_alias: champion
