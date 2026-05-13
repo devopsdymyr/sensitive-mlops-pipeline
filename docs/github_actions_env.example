@@ -1,0 +1,20 @@
+# Reference: values to paste into GitHub → Settings → Secrets and variables → Actions
+# Replace PUBLIC_IP with your VM's address (e.g. curl -fsS https://api.ipify.org).
+# Defaults below match .env.docker.example (ports 5000 / 9000 / 8080 / 8888).
+#
+# --- Repository Secrets (recommended for credentials + URLs if you prefer one tab) ---
+# MLFLOW_TRACKING_URI          http://PUBLIC_IP:5000
+# MLFLOW_S3_ENDPOINT_URL       http://PUBLIC_IP:9000
+# AWS_DEFAULT_REGION           us-east-1
+# AWS_ACCESS_KEY_ID            (same as MINIO_ROOT_USER on the VM, or MINIO_ACCESS_KEY from: make minio-keys)
+# AWS_SECRET_ACCESS_KEY        (same as MINIO_ROOT_PASSWORD on the VM, or MINIO_SECRET_KEY from: make minio-keys)
+# API_HEALTH_URL               http://PUBLIC_IP:8080
+# FEAST_UI_URL                 http://PUBLIC_IP:8888
+#
+# --- Repository Variables (optional: same NAMES; use for public URLs only. Secrets win if both are set.) ---
+# MLFLOW_TRACKING_URI          http://PUBLIC_IP:5000
+# MLFLOW_S3_ENDPOINT_URL       http://PUBLIC_IP:9000
+# AWS_DEFAULT_REGION           us-east-1
+# API_HEALTH_URL               http://PUBLIC_IP:8080
+# FEAST_UI_URL                 http://PUBLIC_IP:8888
+# (Do NOT put AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in Variables — use Secrets only.)

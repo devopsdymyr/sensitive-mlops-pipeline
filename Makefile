@@ -1,6 +1,6 @@
 # Convenience targets (GNU Make). From project root: `make demo`
 
-.PHONY: demo pipeline full-demo docker-build docker-up docker-train public-test local-test verify ci-e2e
+.PHONY: demo pipeline full-demo docker-build docker-up docker-train public-test local-test verify ci-e2e minio-keys
 
 demo:
 	bash scripts/run_full_demo.sh
@@ -33,3 +33,7 @@ verify:
 
 ci-e2e:
 	bash scripts/ci_e2e.sh
+
+# Mint MinIO service-account S3 keys (requires: docker compose up -d minio).
+minio-keys:
+	bash scripts/minio_create_s3_credentials.sh

@@ -1,4 +1,5 @@
 # Mirror of .github/workflows/ml-demo.yml — keep in sync when editing the workflow.
+# CI env: job-level env in the canonical file; secrets + Actions Variables (vars.*); secrets override vars.
 # Canonical: .github/workflows/ml-demo.yml (push requires PAT with `workflow` scope).
 
 name: ML demo pipeline
@@ -23,39 +24,17 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONUNBUFFERED: "1"
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || vars.MLFLOW_TRACKING_URI || format('{0}/mlruns', github.workspace) }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+      MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL || vars.MLFLOW_S3_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      API_HEALTH_URL: ${{ secrets.API_HEALTH_URL || vars.API_HEALTH_URL }}
+      FEAST_UI_URL: ${{ secrets.FEAST_UI_URL || vars.FEAST_UI_URL }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Map secrets to env (hosted MLflow / MinIO / API checks)
-        env:
-          S_MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-          S_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          S_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          S_MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
-          S_AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          S_API_HEALTH_URL: ${{ secrets.API_HEALTH_URL }}
-          S_FEAST_UI_URL: ${{ secrets.FEAST_UI_URL }}
-        run: |
-          set -euxo pipefail
-          echo "MLFLOW_TRACKING_URI=${S_MLFLOW_TRACKING_URI:-$GITHUB_WORKSPACE/mlruns}" >> "$GITHUB_ENV"
-          if [ -n "${S_MLFLOW_S3_ENDPOINT_URL:-}" ]; then
-            echo "MLFLOW_S3_ENDPOINT_URL=$S_MLFLOW_S3_ENDPOINT_URL" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_AWS_ACCESS_KEY_ID:-}" ]; then
-            echo "AWS_ACCESS_KEY_ID=$S_AWS_ACCESS_KEY_ID" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_AWS_SECRET_ACCESS_KEY:-}" ]; then
-            echo "AWS_SECRET_ACCESS_KEY=$S_AWS_SECRET_ACCESS_KEY" >> "$GITHUB_ENV"
-          fi
-          echo "AWS_DEFAULT_REGION=${S_AWS_DEFAULT_REGION:-us-east-1}" >> "$GITHUB_ENV"
-          if [ -n "${S_API_HEALTH_URL:-}" ]; then
-            echo "API_HEALTH_URL=$S_API_HEALTH_URL" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_FEAST_UI_URL:-}" ]; then
-            echo "FEAST_UI_URL=$S_FEAST_UI_URL" >> "$GITHUB_ENV"
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

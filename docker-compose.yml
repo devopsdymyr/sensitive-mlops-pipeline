@@ -11,6 +11,8 @@
 # (still requires cloud firewall / security-group rules for the same TCP ports).
 #   API ${APP_PORT:-8080}, MLflow ${MLFLOW_PORT:-5000}, Feast UI ${FEAST_UI_PORT:-8888},
 #   MinIO API ${MINIO_API_PORT:-9000}, console ${MINIO_CONSOLE_PORT:-9001}
+# MinIO S3 credentials: optional MINIO_ACCESS_KEY / MINIO_SECRET_KEY (service account); if unset,
+# MLflow / app / train use MINIO_ROOT_USER / MINIO_ROOT_PASSWORD. Create keys: scripts/minio_create_s3_credentials.sh
 # Postgres is NOT published (internal only). Set PUBLIC_HOST in .env and run: bash scripts/test_public_endpoints.sh
 #
 # `app`, `feast-ui`, and `train` share one image tag so a single `docker compose build` refreshes all.
@@ -47,6 +49,7 @@ services:
     volumes:
       - minio_data:/data
     ports:
+      # S3 API + web console — bind all interfaces so PUBLIC_HOST:PORT works behind a firewall.
       - "0.0.0.0:${MINIO_API_PORT:-9000}:9000"
       - "0.0.0.0:${MINIO_CONSOLE_PORT:-9001}:9001"
 
@@ -64,8 +67,8 @@ services:
       PGPORT: "5432"
       MLFLOW_BACKEND_STORE_URI: postgresql://mlflow:${POSTGRES_PASSWORD:-mlflow_dev_change_me}@postgres:5432/mlflow
       MLFLOW_DEFAULT_ARTIFACT_ROOT: s3://mlflow-artifacts/
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin_change_me}
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin_change_me}}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_DEFAULT_REGION: us-east-1
     ports:
@@ -89,8 +92,8 @@ services:
       - minio
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin_change_me}
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin_change_me}}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_DEFAULT_REGION: us-east-1
     volumes:
@@ -109,8 +112,8 @@ services:
     environment:
       CONFIGURE_DVC_MINIO_REMOTE: ${CONFIGURE_DVC_MINIO_REMOTE:-1}
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin_change_me}
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin_change_me}}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_DEFAULT_REGION: us-east-1
     volumes:

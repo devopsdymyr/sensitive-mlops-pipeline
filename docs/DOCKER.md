@@ -74,7 +74,20 @@ gcloud compute firewall-rules create mlproject-demo-tcp \
 | MinIO S3 API | `http://PUBLIC_HOST:9000` |
 | MinIO console | `http://PUBLIC_HOST:9001` |
 
-4. Smoke test from any machine (uses **`PUBLIC_HOST`** and ports from **`.env`** or **`.env.docker.example`**):
+**MinIO is exposed** on the host as **`0.0.0.0:MINIO_API_PORT`** (S3 API) and **`0.0.0.0:MINIO_CONSOLE_PORT`** (web UI). Open the same ports in your cloud firewall so clients (browser, GitHub Actions, `aws s3` / boto3) can reach **`http://PUBLIC_HOST:9000`**.
+
+### Dedicated S3 access key + secret (recommended for CI / sharing)
+
+By default, **`mlflow`**, **`app`**, and **`train`** use **`MINIO_ROOT_USER`** / **`MINIO_ROOT_PASSWORD`** as **`AWS_ACCESS_KEY_ID`** / **`AWS_SECRET_ACCESS_KEY`**. You can instead mint a **service account** and put it in **`.env`**:
+
+1. `docker compose up -d minio` (wait until healthy).
+2. `bash scripts/minio_create_s3_credentials.sh` (or **`make minio-keys`**).
+3. Append the printed **`MINIO_ACCESS_KEY`** / **`MINIO_SECRET_KEY`** lines to **`.env`**, then recreate consumers:  
+   `docker compose up -d --force-recreate mlflow app` (and re-run **`train`** if needed).
+
+For **GitHub Actions**, copy the same key pair into **`AWS_ACCESS_KEY_ID`** and **`AWS_SECRET_ACCESS_KEY`** and set **`MLFLOW_S3_ENDPOINT_URL`** to **`http://<PUBLIC_HOST>:9000`** (see **`docs/GITHUB_SETUP.md`**).
+
+**Smoke test** from any machine (uses **`PUBLIC_HOST`** and ports from **`.env`** or **`.env.docker.example`**):
 
 ```bash
 make public-test
@@ -90,7 +103,8 @@ make public-test
 |----------|--------|---------|
 | `MLFLOW_TRACKING_URI` | `app`, `train` | `http://mlflow:5000` — all runs and registry lookups go to the MLflow container. |
 | `MLFLOW_S3_ENDPOINT_URL` | `app`, `train`, `mlflow` | `http://minio:9000` — boto3/MLflow talk S3 API to MinIO. |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | same | MinIO root user/password (dev defaults in `.env.docker.example`). |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | same | MinIO S3 credentials: **`MINIO_ACCESS_KEY`** / **`MINIO_SECRET_KEY`** if set in `.env`, else root **`MINIO_ROOT_*`** (see **Dedicated S3 access key** above). |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `.env` only | Optional. If set, **`mlflow`** / **`app`** / **`train`** use these for **`AWS_ACCESS_KEY_ID`** / **`AWS_SECRET_ACCESS_KEY`** instead of **`MINIO_ROOT_*`**. Create with **`make minio-keys`**. |
 | `CONFIGURE_DVC_MINIO_REMOTE` | `train` | `1` (default): `docker/train-pipeline.sh` adds default remote `minio` → `s3://dvc-cache/dvcfiles` and sets `endpointurl`. Set `0` to skip (local cache only). |
 | `SKIP_DVC` | host / CI only | Not set in Compose by default. Set `1` on `python pipelines/run_pipeline.py` to run the three scripts without `dvc repro` (e.g. smoke test without `.dvc`). |
 

@@ -1,25 +1,47 @@
-# Build and push the API/training image to Docker Hub.
-# Secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (fine-grained or access token).
-# Optional: DOCKERHUB_REPOSITORY (default: same as username, image name mlproject).
+# Build and push the API/training image (Dockerfile) to Docker Hub.
+#
+# Triggers:
+#   1) workflow_dispatch — Actions → "Docker Hub — build and push" → Run workflow
+#   2) workflow_run — after "ML demo pipeline" succeeds on a push to main (same commit is built)
+#
+# Secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (access token or PAT with write).
+# Forks: login may fail without secrets; the job is skipped when the repo is a fork (optional safety).
 
 name: Docker Hub — build and push
 
-# Runs only when you trigger it (avoids failing pushes if Docker Hub secrets are unset).
-# To also build on every push to main, add:
-#   push: { branches: [main] }
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["ML demo pipeline"]
+    types:
+      - completed
+    branches:
+      - main
 
 permissions:
   contents: read
 
+concurrency:
+  group: docker-hub-${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   docker:
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 35
+    # Manual run always; auto run only after successful ML demo from a push to main (not every PR)
+    if: |
+      github.event.repository.fork == false &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'))
     steps:
-      - name: Checkout
+      - name: Checkout (commit that passed ML demo, or current SHA on manual)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -30,7 +52,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push (with GHA layer cache)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -38,11 +60,13 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Smoke test image (healthz only)
         env:
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.sha }}
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euxo pipefail
           docker pull "$IMAGE"

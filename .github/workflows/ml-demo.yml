@@ -1,9 +1,11 @@
 # End-to-end CI: pytest → DVC bootstrap → train pipeline + batch predict → artifact checks
 # → optional public HTTP checks → upload build outputs.
-# Optional: point MLflow (and S3/MinIO) at your **public or hosted** URLs via repository secrets.
+# Optional: point MLflow (and S3/MinIO) at your **public or hosted** URLs via repository
+# **Secrets** (credentials) and **Variables** (non-secret URLs). Same names in both tabs;
+# secrets win when set. Fork PRs: secrets/vars from the fork are used; upstream secrets are not.
 #
-# Triggers: manual, push to main, pull requests (secrets empty on forks → local mlruns).
-# Configure secrets under Settings → Secrets and variables → Actions.
+# Triggers: manual, push to main, pull requests (empty config → local mlruns on runner).
+# Configure under Settings → Secrets and variables → Actions.
 
 name: ML demo pipeline
 
@@ -27,39 +29,19 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONUNBUFFERED: "1"
+      # MLflow + S3/MinIO + optional HTTP checks — one place for all CI env.
+      # Prefer Secrets for credentials; Variables (vars.*) for public URLs if you do not want them in Secrets.
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || vars.MLFLOW_TRACKING_URI || format('{0}/mlruns', github.workspace) }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+      MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL || vars.MLFLOW_S3_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      API_HEALTH_URL: ${{ secrets.API_HEALTH_URL || vars.API_HEALTH_URL }}
+      FEAST_UI_URL: ${{ secrets.FEAST_UI_URL || vars.FEAST_UI_URL }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Map secrets to env (hosted MLflow / MinIO / API checks)
-        env:
-          S_MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-          S_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          S_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          S_MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
-          S_AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          S_API_HEALTH_URL: ${{ secrets.API_HEALTH_URL }}
-          S_FEAST_UI_URL: ${{ secrets.FEAST_UI_URL }}
-        run: |
-          set -euxo pipefail
-          echo "MLFLOW_TRACKING_URI=${S_MLFLOW_TRACKING_URI:-$GITHUB_WORKSPACE/mlruns}" >> "$GITHUB_ENV"
-          if [ -n "${S_MLFLOW_S3_ENDPOINT_URL:-}" ]; then
-            echo "MLFLOW_S3_ENDPOINT_URL=$S_MLFLOW_S3_ENDPOINT_URL" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_AWS_ACCESS_KEY_ID:-}" ]; then
-            echo "AWS_ACCESS_KEY_ID=$S_AWS_ACCESS_KEY_ID" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_AWS_SECRET_ACCESS_KEY:-}" ]; then
-            echo "AWS_SECRET_ACCESS_KEY=$S_AWS_SECRET_ACCESS_KEY" >> "$GITHUB_ENV"
-          fi
-          echo "AWS_DEFAULT_REGION=${S_AWS_DEFAULT_REGION:-us-east-1}" >> "$GITHUB_ENV"
-          if [ -n "${S_API_HEALTH_URL:-}" ]; then
-            echo "API_HEALTH_URL=$S_API_HEALTH_URL" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${S_FEAST_UI_URL:-}" ]; then
-            echo "FEAST_UI_URL=$S_FEAST_UI_URL" >> "$GITHUB_ENV"
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

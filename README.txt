@@ -2,11 +2,13 @@
   SENSITIVE DATA CLASSIFICATION & RISK SCORING — README.txt
 ================================================================================
 
-Architecture diagram (PNG — also embedded at top of README.md):
+Architecture diagram (PNG — regenerate from Mermaid after editing docs/pipeline_overview.mmd):
     docs/mlproject_pipeline_overview.png
-  Editable Mermaid source:
+  Regenerate PNG (Docker, from repo root):
+    docker run --rm -u 0:0 -v "$PWD:/data" minlag/mermaid-cli:11.4.0 -i /data/docs/pipeline_overview.mmd -o /data/docs/mlproject_pipeline_overview.png -b white -w 3200 -H 4200 && sudo chown "$USER:$USER" docs/mlproject_pipeline_overview.png
+  Editable Mermaid source (full pipeline + CI + data stores + UIs):
     docs/pipeline_overview.mmd
-  Full system + GitHub Actions + Docker Hub flow (Mermaid):
+  Full system + GitHub Actions + Docker Hub flow + UI/UX + data per stage (Mermaid):
     docs/ARCHITECTURE_AND_CI.md
 
 

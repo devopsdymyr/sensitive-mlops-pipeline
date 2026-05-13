@@ -1,8 +1,61 @@
-%% Mermaid source for README / diagram export. PNG: docs/mlproject_pipeline_overview.png
+%% Mermaid source — export to PNG (on minimal Linux prefer Docker; npx needs Chrome libs):
+%%   docker run --rm -u 0:0 -v "$PWD:/data" minlag/mermaid-cli:11.4.0 -i /data/docs/pipeline_overview.mmd -o /data/docs/mlproject_pipeline_overview.png -b white -w 3200 -H 4200
+%%   npx --yes @mermaid-js/mermaid-cli@11 -i docs/pipeline_overview.mmd -o docs/mlproject_pipeline_overview.png -b white -w 3200 -H 4200
+%% Full narrative: docs/ARCHITECTURE_AND_CI.md
 
-flowchart LR
-  A["Synthetic data<br/><tt>sensitive_records.csv</tt>"] --> B["DVC<br/>dvc repro<br/>(MinIO remote in Docker)"]
-  B --> C["Features<br/><tt>pii_detector</tt> + Feast<br/>registry + <tt>.parquet</tt>"]
-  C --> D["Train<br/>sklearn + MLflow<br/><tt>@champion</tt>"]
-  D --> E["Serve<br/><tt>predict.py</tt> + FastAPI"]
-  E --> F["CI<br/>GitHub Actions / GitLab"]
+flowchart TB
+  %% ---- CI / CD top -------------------------------------------------
+  subgraph CICD["CI and CD — GitHub"]
+    direction TB
+    MLJOB["ML demo pipeline on push, PR, or manual to main<br/>Map secrets: MLFLOW_TRACKING_URI, S3 keys, API_HEALTH_URL, FEAST_UI_URL"]
+    MLSTEPS["Install deps + dev • Wire .venv/bin/python for DVC<br/>pytest tests/ • dvc init if needed • run_pipeline.py --full-demo<br/>verify_outputs.py • optional public HTTP checks • upload demo-outputs artifact"]
+    DOCKERJOB["Docker Hub — build and push<br/>Trigger: manual OR workflow_run after ML success on push to main<br/>Checkout passing SHA • buildx + GHA cache • push :latest and :sha<br/>Smoke: GET /healthz on pulled image"]
+    MLJOB --> MLSTEPS --> DOCKERJOB
+  end
+
+  %% ---- Orchestration -----------------------------------------------
+  ORCH["pipelines/run_pipeline.py<br/>dvc repro when .dvc exists else script chain"]
+
+  %% ---- DVC stages with stored data ----------------------------------
+  subgraph DVC["DVC stages dvc.yaml — what is stored"]
+    direction TB
+    G["Stage 1: generate_data — src/generate_dataset.py"]
+    GDATA["Stored: data/raw/sensitive_records.csv<br/>Format: CSV • Columns: record_id, raw_text, risk_score, risk_label, compliance_tag<br/>Content: synthetic log lines for demo"]
+    F["Stage 2: featurize — src/featurize.py + feast apply"]
+    FDATA["Stored: data/processed/sensitive_features.parquet<br/>Format: Parquet • Regex feature columns + event_timestamp UTC<br/>Also: data/feast/ Feast registry and online store paths"]
+    T["Stage 3: train — src/train.py + Feast offline join"]
+    TDATA["Stored: metrics/train_metrics.json accuracy f1_macro run_id<br/>Stored: models/risk_label_classes.json class order for predict serve<br/>Stored: mlruns or remote • params metrics artifacts model.pkl MLmodel<br/>Registry: SensitiveDataRiskClassifier alias champion per params.yaml"]
+    G --> GDATA --> F --> FDATA --> T --> TDATA
+  end
+
+  %% ---- Consume -----------------------------------------------------
+  subgraph USE["Inference and API"]
+    direction TB
+    PRED["Batch: src/predict.py — loads models:/Name@champion — writes predictions.csv"]
+    API["Online: src/serve.py FastAPI — MLFLOW_MODEL_URI or params • needs classes JSON<br/>Routes: GET /healthz GET /metrics GET /v1/categories POST /v1/score POST /v1/analyze"]
+  end
+
+  %% ---- Operator UIs -----------------------------------------------
+  subgraph UI["Operator surfaces default compose ports overridable in .env"]
+    direction LR
+    U1["MLflow UI — experiments runs registry — host : MLFLOW_PORT default 5000"]
+    U2["Feast UI — feature definitions — FEAST_UI_PORT default 8888"]
+    U3["MinIO — S3 API MLflow artifacts DVC remote — 9000 console 9001"]
+    U4["FastAPI Swagger — /docs — APP_PORT default 8080"]
+  end
+
+  %% ---- Docker image ------------------------------------------------
+  subgraph IMG["Docker Hub image mlproject"]
+    IM["Dockerfile: Python 3.10 slim • requirements.txt • code • .venv/bin/python symlink<br/>Tags: latest and git SHA • Runtime needs MLflow URI + risk_label_classes.json for scoring"]
+  end
+
+  %% ---- Links -------------------------------------------------------
+  CICD --> ORCH
+  ORCH --> G
+  TDATA --> PRED
+  TDATA --> API
+  TDATA --> U1
+  FDATA --> U2
+  TDATA --> U3
+  API --> U4
+  DOCKERJOB --> IM
