@@ -1,0 +1,2 @@
+# Optional dev / CI local checks (install: pip install -r requirements-dev.txt)
+pytest>=8,<9

@@ -1,7 +1,8 @@
-# Enterprise-friendly CI: DVC pipeline + sample predict + artifacts.
+# End-to-end CI: pytest → DVC bootstrap → train pipeline + batch predict → artifact checks
+# → optional public HTTP checks → upload build outputs.
 # Optional: point MLflow (and S3/MinIO) at your **public or hosted** URLs via repository secrets.
 #
-# Triggers: manual, push to main, pull requests (same job; secrets empty on forks → local mlruns).
+# Triggers: manual, push to main, pull requests (secrets empty on forks → local mlruns).
 # Configure secrets under Settings → Secrets and variables → Actions.
 
 name: ML demo pipeline
@@ -65,19 +66,28 @@ jobs:
         with:
           python-version: "3.10"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Unit tests (fail fast)
+        run: python -m pytest tests/ -q --tb=short
 
       - name: Ensure DVC metadata
         run: test -d .dvc || dvc init --no-scm
 
       - name: Full pipeline + sample predict
         run: python pipelines/run_pipeline.py --full-demo
+
+      - name: Validate pipeline outputs (E2E)
+        run: python scripts/verify_outputs.py
 
       - name: Optional checks — public API + Feast UI
         run: |
@@ -90,6 +100,18 @@ jobs:
             curl -fsS --max-time 30 -o /dev/null "$FEAST_UI_URL"
           fi
 
+      - name: E2E summary
+        if: success()
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path("metrics/train_metrics.json").read_text())
+          print("train_metrics:", {k: m[k] for k in ("run_id", "accuracy", "f1_macro") if k in m})
+          PY
+          wc -l predictions.csv || true
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -101,3 +123,4 @@ jobs:
             predictions.csv
             data/raw/sensitive_records.csv
             data/processed/sensitive_features.parquet
+            models/risk_label_classes.json

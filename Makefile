@@ -1,6 +1,6 @@
 # Convenience targets (GNU Make). From project root: `make demo`
 
-.PHONY: demo pipeline full-demo docker-build docker-up docker-train public-test
+.PHONY: demo pipeline full-demo docker-build docker-up docker-train public-test local-test verify ci-e2e
 
 demo:
 	bash scripts/run_full_demo.sh
@@ -24,3 +24,12 @@ docker-train:
 # After compose is up: hit API / MLflow / Feast / MinIO on PUBLIC_HOST (see .env.docker.example).
 public-test:
 	bash scripts/test_public_endpoints.sh
+
+local-test:
+	bash scripts/local_test.sh
+
+verify:
+	.venv/bin/python scripts/verify_outputs.py
+
+ci-e2e:
+	bash scripts/ci_e2e.sh

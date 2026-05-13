@@ -9,7 +9,7 @@
 3. **Train & register** — **`LogisticRegression`** learns **LOW / MEDIUM / HIGH** risk from those features; **MLflow** logs the run and registers **`SensitiveDataRiskClassifier`** with alias **`champion`**.  
 4. **Consume** — **`predict.py`** scores CSV rows; **FastAPI** (`serve.py`) exposes **`/v1/score`**, **`/v1/analyze`**, and health/metrics — the same **`pipelines/run_pipeline.py --full-demo`** entrypoint runs in **GitHub Actions** (push/PR to **`main`** or manual) and **GitLab CI** for enterprise builds.
 
-**Links:** [Plain-text README](README.txt) · [Mermaid source](docs/pipeline_overview.mmd) · [Push to GitHub](docs/GITHUB_SETUP.md) · [Docker + self-hosted MLflow/MinIO](docs/DOCKER.md)
+**Links:** [Plain-text README](README.txt) · [Architecture & CI diagrams](docs/ARCHITECTURE_AND_CI.md) · [Mermaid source](docs/pipeline_overview.mmd) · [Push to GitHub](docs/GITHUB_SETUP.md) · [Docker + self-hosted MLflow/MinIO](docs/DOCKER.md)
 
 This repository is a **demo** (not certified compliance software).
 

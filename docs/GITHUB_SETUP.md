@@ -51,10 +51,12 @@ GitHub may reject pushes that add or change workflows unless your credential has
 ## 4) Enable GitHub Actions
 
 1. **Settings → Actions → General** — allow workflows (your org’s policy may require admin approval).
-2. **Actions** → **ML demo pipeline** — runs on **push** / **pull_request** to **`main`**, or **Run workflow** (manual).
+2. **Actions** → **ML demo pipeline** — runs on **push** / **pull_request** to **`main`**, or **Run workflow** (manual). The job runs **pytest**, then **`pipelines/run_pipeline.py --full-demo`**, then **`scripts/verify_outputs.py`**, optional **public URL** checks if secrets are set, then uploads **demo-outputs** (metrics, CSVs, parquet, **`models/risk_label_classes.json`**).
 3. Optional: add **repository secrets** so CI uses your **hosted** MLflow, MinIO (S3 API), and public HTTP checks (see table below).
 
 The workflow file is **`.github/workflows/ml-demo.yml`**. A copy for reference lives at **`docs/github_actions_ml_demo.yml`** (keep them in sync when editing).
+
+**Docker Hub image:** **`.github/workflows/docker-publish.yml`** — open **Actions → “Docker Hub — build and push” → Run workflow** (manual by default so missing secrets do not fail ordinary pushes). Add secrets **`DOCKERHUB_USERNAME`** and **`DOCKERHUB_TOKEN`**. The job builds **`Dockerfile`**, pushes **`DOCKERHUB_USERNAME/mlproject`** with tags **`latest`** and **`${{ github.sha }}`**, then **pulls** the SHA-tagged image and checks **`GET /healthz`**. To build on every push to **`main`**, edit the workflow file and uncomment/add a **`push:`** trigger. Architecture diagrams (registry → image → Hub → runtime) are in **`docs/ARCHITECTURE_AND_CI.md`**.
 
 ## 5) Optional CI secrets (public / hosted endpoints)
 

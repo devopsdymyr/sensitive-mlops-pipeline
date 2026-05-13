@@ -6,6 +6,8 @@ Architecture diagram (PNG — also embedded at top of README.md):
     docs/mlproject_pipeline_overview.png
   Editable Mermaid source:
     docs/pipeline_overview.mmd
+  Full system + GitHub Actions + Docker Hub flow (Mermaid):
+    docs/ARCHITECTURE_AND_CI.md
 
 
 LEGAL / SAFETY NOTICE
@@ -164,6 +166,14 @@ See README.md section "Model format and MLflow Model Registry" for full detail.
   One-shot full demo (venv + deps + DVC if needed + pipeline + predict):
     bash scripts/run_full_demo.sh
     # or:  make demo
+
+  Full local test (venv + dev deps + pipeline + pytest + output checks):
+    bash scripts/local_test.sh
+    # or:  make local-test
+    # Re-run checks only after you already trained:  SKIP_FULL_DEMO=1 bash scripts/local_test.sh
+
+  After a Docker Hub push, smoke the image (/healthz; optional DEEP=1 for /v1/score):
+    bash scripts/docker_image_smoke.sh YOUR_USER/mlproject:latest
 
   python3 -m venv .venv
   .venv/bin/pip install -U pip

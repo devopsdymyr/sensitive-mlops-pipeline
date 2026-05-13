@@ -1,0 +1,55 @@
+# Build and push the API/training image to Docker Hub.
+# Secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (fine-grained or access token).
+# Optional: DOCKERHUB_REPOSITORY (default: same as username, image name mlproject).
+
+name: Docker Hub — build and push
+
+# Runs only when you trigger it (avoids failing pushes if Docker Hub secrets are unset).
+# To also build on every push to main, add:
+#   push: { branches: [main] }
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.sha }}
+
+      - name: Smoke test image (healthz only)
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/mlproject:${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker pull "$IMAGE"
+          docker run -d --name gh_smoke -p 18080:8080 "$IMAGE"
+          for i in $(seq 1 25); do
+            curl -fsS http://127.0.0.1:18080/healthz && break
+            sleep 2
+          done
+          python3 -c "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:18080/healthz')); assert d.get('status')=='ok', d"
+          docker rm -f gh_smoke
