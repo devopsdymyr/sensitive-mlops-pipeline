@@ -73,6 +73,12 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Wire DVC Python path (matches dvc.yaml ${py} and Dockerfile)
+        run: |
+          set -euxo pipefail
+          mkdir -p .venv/bin
+          ln -sf "$(which python)" .venv/bin/python
+
       - name: Unit tests (fail fast)
         run: python -m pytest tests/ -q --tb=short
 

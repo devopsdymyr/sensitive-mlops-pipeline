@@ -27,6 +27,12 @@ export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-${ROOT}/mlruns}"
 "$PIP" install -r "${ROOT}/requirements.txt"
 "$PIP" install -r "${ROOT}/requirements-dev.txt"
 
+# Match CI + Dockerfile: dvc.yaml expects .venv/bin/python
+if [[ ! -x "${ROOT}/.venv/bin/python" ]]; then
+  mkdir -p "${ROOT}/.venv/bin"
+  ln -sf "$("$PY" -c 'import sys; print(sys.executable)')" "${ROOT}/.venv/bin/python"
+fi
+
 "$PY" -m pytest "${ROOT}/tests" -q --tb=short
 test -d "${ROOT}/.dvc" || "${PY}" -m dvc init --no-scm
 "$PY" "${ROOT}/pipelines/run_pipeline.py" --full-demo

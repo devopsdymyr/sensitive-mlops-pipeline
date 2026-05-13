@@ -110,6 +110,8 @@ flowchart TD
 
 Fork PRs do not receive secrets; those builds use **local `mlruns`** in the runner only.
 
+**`dvc.yaml` and CI:** stages use **`${py}: .venv/bin/python`**. On GitHub Actions, **“Wire DVC Python path”** symlinks the runner’s `python` to **`.venv/bin/python`** (same pattern as **`Dockerfile`**) so **`dvc repro`** succeeds without committing a venv.
+
 ---
 
 ## 3. Training, metrics, accuracy, and model registry
